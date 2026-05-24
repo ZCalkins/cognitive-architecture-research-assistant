@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+
+project_name: strange-loop
+phase: 1
+seed: 0
+device: cuda
+dtype: float32
+
+llm:
+  primary_provider: anthropic
+  primary_model: claude-sonnet-4-5
+  secondary_provider: ollama
+  secondary_model: llama3.1:70b
+  ollama_host: http://localhost:11434
+
+persistence:
+  db_path: data/strange_loop.db
+
+run_name: ${now:%Y-%m-%d_%H-%M-%S}_phase${phase}
