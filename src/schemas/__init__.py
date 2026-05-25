@@ -12,16 +12,32 @@ from src.schemas.backings import (
     SymbolicBacking,
 )
 from src.schemas.base import Schema, SchemaMeta
+from src.schemas.lifecycle import (
+    LifecycleEvent,
+    LifecycleManager,
+    LifecycleTrigger,
+    MergeTrigger,
+    PruneTrigger,
+    SpawnTrigger,
+    SplitTrigger,
+)
 from src.schemas.types import SpawnRecord, StructureMapping, TypedSlot
 
 __all__ = [
     "CompositeBacking",
     "LLMBacking",
+    "LifecycleEvent",
+    "LifecycleManager",
+    "LifecycleTrigger",
+    "MergeTrigger",
     "NeuralBacking",
+    "PruneTrigger",
     "Schema",
     "SchemaBacking",
     "SchemaMeta",
     "SpawnRecord",
+    "SpawnTrigger",
+    "SplitTrigger",
     "StructureMapping",
     "SymbolicBacking",
     "TypedSlot",

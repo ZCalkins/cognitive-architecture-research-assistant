@@ -30,6 +30,12 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import Tensor, nn
 
+from src.schemas.structured_output import (
+    StructuredOutputParseError,
+    StructuredOutputProtocol,
+    parse_structured_response,
+)
+
 if TYPE_CHECKING:
     from src.schemas.base import Schema
 
@@ -79,9 +85,13 @@ class NeuralBacking(SchemaBacking):
 class LLMBacking(SchemaBacking):
     """A frozen LLM invoked by prompt template.
 
-    Session 1 only defines the *shape* of an LLM-backed schema. The actual
-    call path lands in Session 2 alongside active-inference-mediated
-    invocation, where the provider is wired through the orchestrator.
+    The call path (Session 2): the provider (passed via
+    ``slot_values["_llm_provider"]``) is asked to complete a prompt built from
+    ``prompt_template`` plus the structured-output protocol instructions; the
+    response is parsed and validated into ``(output, dirichlet_alpha)``. The
+    template may use ``{slot_name}`` placeholders for any slot value;
+    framework slots (prefixed ``_``, e.g. ``_llm_provider``, ``_system_prompt``,
+    ``_probe``) are reserved and never interpolated into the prompt.
     """
 
     backing_type = "llm"
@@ -101,13 +111,64 @@ class LLMBacking(SchemaBacking):
     def forward(
         self, context: Tensor, slot_values: dict[str, Any] | None = None
     ) -> tuple[Tensor, Tensor]:
-        if slot_values is None or "_llm_provider" not in slot_values:
-            raise NotImplementedError(
-                "LLMBacking.forward requires an LLMProvider in "
-                "slot_values['_llm_provider']. Wire through the orchestrator. "
-                "Session 2 deliverable: active-inference mediated invocation."
+        from src.providers.types import LLMRequest
+
+        slot_values = slot_values or {}
+        provider = slot_values.get("_llm_provider")
+        if provider is None:
+            raise RuntimeError(
+                "LLMBacking requires _llm_provider in slot_values. "
+                "Wire through the orchestrator."
             )
-        raise NotImplementedError("LLM call path is a Session 2 deliverable.")
+
+        protocol = StructuredOutputProtocol(latent_dim=self.latent_dim)
+        render_values = {k: v for k, v in slot_values.items() if not k.startswith("_")}
+        try:
+            rendered = self.prompt_template.format(**render_values)
+        except KeyError as exc:
+            raise KeyError(
+                f"prompt_template references missing slot {exc}; "
+                f"available slots: {sorted(render_values)}"
+            ) from exc
+
+        system_prompt = slot_values.get("_system_prompt")
+        probe = slot_values.get("_probe")
+
+        def _call(message: str) -> str:
+            request = LLMRequest(
+                messages=[{"role": "user", "content": message}],
+                model=self.model,
+                temperature=self.default_temperature,
+                system=system_prompt,
+            )
+            response = provider.complete(request)
+            if probe is not None:
+                probe.record("llm_response_length", torch.tensor([len(response.text)]))
+                probe.record_scalar("llm_input_tokens", response.input_tokens)
+                probe.record_scalar("llm_output_tokens", response.output_tokens)
+            return response.text
+
+        first_text = _call(rendered + "\n\n" + protocol.instruction_text)
+        try:
+            output_tensor, alpha_tensor, _ = parse_structured_response(first_text, protocol)
+            return output_tensor, alpha_tensor
+        except StructuredOutputParseError:
+            corrective = (
+                "Your previous response could not be parsed as the required JSON "
+                f"schema. Respond again, strictly conforming to:\n{protocol.instruction_text}"
+            )
+            second_text = _call(corrective)
+            try:
+                output_tensor, alpha_tensor, _ = parse_structured_response(
+                    second_text, protocol
+                )
+                return output_tensor, alpha_tensor
+            except StructuredOutputParseError as exc:
+                raise StructuredOutputParseError(
+                    "LLMBacking failed to parse a conforming response after two "
+                    f"attempts.\nFirst attempt: {first_text[:200]!r}\n"
+                    f"Second attempt: {second_text[:200]!r}"
+                ) from exc
 
 
 class SymbolicBacking(SchemaBacking):

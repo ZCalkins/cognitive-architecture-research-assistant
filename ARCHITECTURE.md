@@ -137,11 +137,13 @@ probe instrumentation; this document and `CLAUDE.md`; passing pytest.
 
 ### Phase 1 — Orchestrator skeleton
 
-**Status:** Session 1 completed in the from-scratch build (polymorphic
-schemas, LLM provider, orchestrator skeleton, persistence). Remaining
-sessions: active inference action selection (Session 2), paper ingestion
-and ResearchKB integration (Session 3), engagement signal pipeline
-(Session 3), six seed specialists (Session 4-5).
+**Status:** Session 1 completed (polymorphic schemas, LLM provider,
+orchestrator skeleton, persistence); Session 2 completed (LLM call path with
+structured-output protocol, active inference selector with GenerativeModel +
+Preferences, Piagetian lifecycle API scaffolding — dynamics deferred to
+Phase 2). Remaining sessions: paper ingestion and ResearchKB integration
+(Session 3), engagement signal pipeline (Session 3), six seed specialists
+(Session 4-5).
 
 **Goal:** trivial end-to-end paper-triage running with hand-designed
 specialists. No self-schema yet, no hypernetwork, no lifecycle.
@@ -167,7 +169,11 @@ specialists. No self-schema yet, no hypernetwork, no lifecycle.
 6. Engagement signal pipeline (polymorphic event types; v0 handlers for
    read/skim/discard/flag/notes/time-on-paper).
 7. Global workspace context-construction service. **DONE in Session 1.**
-8. Active inference action selection over specialist invocations.
+8. Active inference action selection over specialist invocations. **DONE in
+   Session 2** (GenerativeModel + Preferences + ActiveInferenceSelector; top-k
+   preserved as the Phase 5 criterion 2 ablation control). Piagetian lifecycle
+   API scaffolded in Session 2; spawn/split/merge/prune *dynamics* are a
+   Phase 2 deliverable.
 9. SQLite-backed state persistence. **DONE in Session 1.**
 
 **Milestone test:** system produces a daily triage; engagement signals are

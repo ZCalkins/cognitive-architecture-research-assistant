@@ -27,14 +27,18 @@ is honestly claimable from code.
 
 ## Current phase
 
-**Phase 1 — Orchestrator skeleton, Session 1 complete.** Polymorphic Schema
-framework; LLMProvider abstraction (Anthropic + Ollama); orchestrator skeleton
-(registry, workspace, dispatcher, loop); SQLite persistence; probe
-instrumentation; passing pytest.
+**Phase 1 — Orchestrator skeleton, Session 2 complete.** LLM call path wired
+(structured-output protocol, parse + validate, one corrective retry); active
+inference action selection (GenerativeModel, Preferences,
+ActiveInferenceSelector) with the top-k baseline preserved as the Phase 5
+criterion 2 ablation control; Piagetian lifecycle API scaffolded (compose and
+prune wired; spawn/split/merge deferred to Phase 2). Session 1 deliverables
+(schemas, providers, orchestrator skeleton, SQLite persistence, probes)
+remain. Passing pytest.
 
-**Next session work:** active inference action selection in the Dispatcher
-(replacing top-k); Piagetian lifecycle triggers; paper ingestion pipeline;
-ResearchKB integration; engagement signal handlers; the six seed specialists.
+**Next session work:** paper ingestion pipeline; ResearchKB integration;
+engagement signal handlers (polymorphic event types). Then the six seed
+specialists (Session 4-5). Lifecycle trigger *dynamics* land in Phase 2.
 
 ## The thesis (one sentence)
 

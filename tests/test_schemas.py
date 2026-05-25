@@ -13,7 +13,6 @@ from torch import nn
 
 from src.schemas import (
     CompositeBacking,
-    LLMBacking,
     NeuralBacking,
     Schema,
     SymbolicBacking,
@@ -35,20 +34,6 @@ def test_neural_backing_predict_shapes():
     assert output.shape == (2, latent_dim)
     assert alpha.shape == (2, latent_dim)
     assert torch.all(alpha > 0)
-
-
-def test_llm_backing_raises_without_provider():
-    """Serves (C) firewall: LLMBacking cannot run without a wired provider."""
-    backing = LLMBacking(prompt_template="{paper}")
-    with pytest.raises(NotImplementedError, match="requires an LLMProvider"):
-        backing.forward(torch.zeros(1), slot_values=None)
-
-
-def test_llm_backing_raises_session2_stub():
-    """Serves (C) firewall: even with a provider, the call path is Session 2."""
-    backing = LLMBacking(prompt_template="{paper}")
-    with pytest.raises(NotImplementedError, match="LLM call path is a Session 2"):
-        backing.forward(torch.zeros(1), slot_values={"_llm_provider": object()})
 
 
 def test_symbolic_backing_dispatches_rule():

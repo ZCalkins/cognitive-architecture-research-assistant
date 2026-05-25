@@ -5,6 +5,9 @@ These tests pin the routing/selection/persistence cycle and — critically —
 the (C) firewall encoded at the type level in the workspace.
 """
 
+from unittest.mock import MagicMock
+
+import pytest
 import torch
 from torch import nn
 
@@ -174,3 +177,99 @@ def test_dispatcher_records_to_probe():
     probe = Probe()
     dispatcher.dispatch(torch.ones(4), top_k=1, probe=probe)
     assert probe.get_scalars("n_dispatched") == [1]
+
+
+def test_dispatcher_uses_selector_when_provided():
+    """Serves (B): an ActiveInferenceSelector drives selection when wired."""
+    registry = SchemaRegistry()
+    schema = _schema("a", 4, torch.ones(4))
+    registry.register(schema)
+    selector = MagicMock()
+    selector.select.return_value = [(schema, {"total": 1.0})]
+    dispatcher = Dispatcher(registry, Workspace(registry), selector=selector)
+    results = dispatcher.dispatch(torch.ones(4), top_k=1)
+    selector.select.assert_called_once()
+    assert results[0][0] is schema
+
+
+def test_dispatcher_falls_back_to_top_k_without_selector():
+    """Serves Phase 5 criterion 2: the top-k baseline (ablation control) persists."""
+    registry = SchemaRegistry()
+    schema_1 = _schema("s1", 4, torch.tensor([1.0, 0.0, 0.0, 0.0]))
+    schema_2 = _schema("s2", 4, torch.tensor([0.0, 1.0, 0.0, 0.0]))
+    registry.register(schema_1)
+    registry.register(schema_2)
+    dispatcher = Dispatcher(registry, Workspace(registry))
+    results = dispatcher.dispatch(torch.tensor([1.0, 0.1, 0.0, 0.0]), top_k=1)
+    assert len(results) == 1
+    assert results[0][0] is schema_1
+
+
+def test_dispatcher_records_selection_mode_to_probe():
+    """Serves Phase 5 criterion 2: selection mode is recorded (1.0 AI / 0.0 baseline)."""
+    registry = SchemaRegistry()
+    schema = _schema("a", 4, torch.ones(4))
+    registry.register(schema)
+
+    baseline_probe = Probe()
+    Dispatcher(registry, Workspace(registry)).dispatch(
+        torch.ones(4), top_k=1, probe=baseline_probe
+    )
+    assert baseline_probe.get_scalars("selection_mode") == [0.0]
+
+    selector = MagicMock()
+    selector.select.return_value = [(schema, {"total": 1.0})]
+    ai_probe = Probe()
+    Dispatcher(registry, Workspace(registry), selector=selector).dispatch(
+        torch.ones(4), top_k=1, probe=ai_probe
+    )
+    assert ai_probe.get_scalars("selection_mode") == [1.0]
+
+
+def test_orchestrator_step_with_active_inference_invokes_generative_model_update():
+    """Serves (B): each invocation feeds a learning update to the generative model."""
+    store = SQLiteStore(":memory:")
+    registry = SchemaRegistry()
+    schema = _schema("a", 4, torch.ones(4))
+    registry.register(schema)
+    workspace = Workspace(registry)
+    dispatcher = Dispatcher(registry, workspace)
+    generative_model = MagicMock()
+    selector = MagicMock()
+    selector.select.return_value = [(schema, {"total": 1.0})]
+    orchestrator = Orchestrator(
+        registry, workspace, dispatcher, store,
+        selector=selector, generative_model=generative_model,
+    )
+    orchestrator.step(torch.ones(4))
+    generative_model.update.assert_called_once()
+    store.close()
+
+
+def test_orchestrator_raises_if_selector_without_generative_model():
+    """Serves (D): a selector with no generative model is a hard config error."""
+    store = SQLiteStore(":memory:")
+    registry = SchemaRegistry()
+    workspace = Workspace(registry)
+    dispatcher = Dispatcher(registry, workspace)
+    with pytest.raises(ValueError, match="requires a GenerativeModel"):
+        Orchestrator(registry, workspace, dispatcher, store, selector=MagicMock())
+    store.close()
+
+
+def test_orchestrator_step_runs_lifecycle_when_manager_provided():
+    """Serves (C): the lifecycle manager runs once per orchestrator step."""
+    store = SQLiteStore(":memory:")
+    registry = SchemaRegistry()
+    registry.register(_schema("a", 4, torch.ones(4)))
+    workspace = Workspace(registry)
+    dispatcher = Dispatcher(registry, workspace)
+    lifecycle_manager = MagicMock()
+    lifecycle_manager.step.return_value = []
+    orchestrator = Orchestrator(
+        registry, workspace, dispatcher, store, lifecycle_manager=lifecycle_manager
+    )
+    summary = orchestrator.step(torch.ones(4))
+    lifecycle_manager.step.assert_called_once()
+    assert summary["n_lifecycle_events"] == 0
+    store.close()
