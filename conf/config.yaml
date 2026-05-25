@@ -8,11 +8,46 @@ device: cuda
 dtype: float32
 
 llm:
-  primary_provider: anthropic
-  primary_model: claude-sonnet-4-5
-  secondary_provider: ollama
-  secondary_model: llama3.1:70b
+  primary_provider: ollama
+  secondary_provider: anthropic  # opt-in for Phase 5 swap-test only
   ollama_host: http://localhost:11434
+
+specialist_models:
+  triage_light: llama3.1:8b-instruct-q4_K_M
+  triage_heavy: mistral-small:24b-instruct-2503-q4_K_M
+
+specialist_assignments:
+  novelty_vs_kb: triage_light
+  relevance_to_projects: triage_light
+  citation_graph_position: triage_light
+  author_history: triage_light
+  methodological_rigor: triage_heavy
+  theoretical_claim_evaluator: triage_heavy
+
+embedding:
+  model_name: sentence-transformers/mxbai-embed-large-v1
+  dimension: 1024
+  cache_dir: data/embedding_cache
+
+kb:
+  papers_db_path: data/papers.db
+  embeddings_index_path: data/papers.faiss
+  embeddings_metadata_path: data/papers_meta.jsonl
+
+ingestion:
+  arxiv_categories:
+    - cs.AI
+    - cs.LG
+    - cs.NE
+    - cs.CL
+  arxiv_max_results_per_run: 50
+  semantic_scholar_enabled: false  # deferred; arxiv-only for v0
+
+triage:
+  output_directory: ~/.strange-loop/triage
+  filename_format: "%Y-%m-%d.md"
+  papers_per_day_target: 30
+  watch_for_signal_edits: true
 
 persistence:
   db_path: data/strange_loop.db

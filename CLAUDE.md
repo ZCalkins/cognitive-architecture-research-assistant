@@ -27,18 +27,19 @@ is honestly claimable from code.
 
 ## Current phase
 
-**Phase 1 — Orchestrator skeleton, Session 2 complete.** LLM call path wired
-(structured-output protocol, parse + validate, one corrective retry); active
-inference action selection (GenerativeModel, Preferences,
-ActiveInferenceSelector) with the top-k baseline preserved as the Phase 5
-criterion 2 ablation control; Piagetian lifecycle API scaffolded (compose and
-prune wired; spawn/split/merge deferred to Phase 2). Session 1 deliverables
-(schemas, providers, orchestrator skeleton, SQLite persistence, probes)
-remain. Passing pytest.
+**Phase 1 — Orchestrator skeleton, Sessions 1-3 complete.** Session 1
+(polymorphic schemas, providers, orchestrator skeleton, SQLite persistence,
+probes); Session 2 (LLM call path, active inference with the top-k baseline
+preserved as the Phase 5 criterion 2 ablation control, lifecycle API); Session
+3 (local KB via `LocalKBConnector`, arxiv paper ingestion, polymorphic
+engagement-signal pipeline + markdown triage surface, `click` CLI; the six
+specialists exist as deterministic STUBS). Passing pytest.
 
-**Next session work:** paper ingestion pipeline; ResearchKB integration;
-engagement signal handlers (polymorphic event types). Then the six seed
-specialists (Session 4-5). Lifecycle trigger *dynamics* land in Phase 2.
+**Next session work:** replace the six stub specialists with real
+LLMBacking-backed implementations (concrete prompt templates, slot definitions,
+structured-output examples; model assignment per `specialist_assignments`).
+After Session 4 the Phase 1 milestone test is runnable. Lifecycle trigger
+*dynamics* land in Phase 2.
 
 ## The thesis (one sentence)
 
@@ -112,7 +113,11 @@ frontier domain.
 - Hydra for configs
 - pytest + Hypothesis for testing
 - ruff for lint/format
-- Custom `LLMProvider` wrapping Anthropic SDK + Ollama
+- Custom `LLMProvider` wrapping Ollama (primary, local; Llama 3.1 8B for light
+  specialists, Mistral Small 24B for heavy) and the Anthropic SDK (opt-in for
+  Phase 5 substrate-swap tests only)
+- `sentence-transformers` + `faiss-cpu` for local KB embeddings and search
+- `click` for the CLI; `watchdog` for the engagement-signal file watcher
 - SQLite for v0 state persistence
 - **No** LangChain, LangGraph, AutoGen, CrewAI, SQLAlchemy
 

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from src.schemas.base import Schema
+    from src.signals.types import SignalEvent
 
 
 @dataclass
@@ -85,6 +86,17 @@ _SCHEMA_DDL = [
         ts REAL,
         state_blob BLOB,
         identity_invariant_blob BLOB
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS engagement_signals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT UNIQUE,
+        paper_id TEXT,
+        kind TEXT,
+        ts REAL,
+        payload_json TEXT,
+        source TEXT
     )
     """,
 ]
@@ -190,6 +202,41 @@ class SQLiteStore:
             (time.time(), event_type, json.dumps(payload, default=str)),
         )
         self.conn.commit()
+
+    def record_engagement_signal(self, event: SignalEvent) -> None:
+        """Persist an engagement SignalEvent (claim (A) substrate)."""
+        self.conn.execute(
+            """
+            INSERT INTO engagement_signals (
+                event_id, paper_id, kind, ts, payload_json, source
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(event.event_id),
+                event.paper_id,
+                event.kind.value,
+                event.timestamp.timestamp(),
+                json.dumps(event.payload, default=str),
+                event.source,
+            ),
+        )
+        self.conn.commit()
+
+    def engagement_signals_for_paper(self, paper_id: str) -> list[dict]:
+        """All engagement signals for a paper, oldest first."""
+        rows = self.conn.execute(
+            "SELECT * FROM engagement_signals WHERE paper_id = ? ORDER BY ts ASC",
+            (paper_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def recent_engagement_signals(self, limit: int = 100) -> list[dict]:
+        """The most recent engagement signals, newest first."""
+        rows = self.conn.execute(
+            "SELECT * FROM engagement_signals ORDER BY ts DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def close(self) -> None:
         self.conn.close()

@@ -137,13 +137,13 @@ probe instrumentation; this document and `CLAUDE.md`; passing pytest.
 
 ### Phase 1 — Orchestrator skeleton
 
-**Status:** Session 1 completed (polymorphic schemas, LLM provider,
-orchestrator skeleton, persistence); Session 2 completed (LLM call path with
-structured-output protocol, active inference selector with GenerativeModel +
-Preferences, Piagetian lifecycle API scaffolding — dynamics deferred to
-Phase 2). Remaining sessions: paper ingestion and ResearchKB integration
-(Session 3), engagement signal pipeline (Session 3), six seed specialists
-(Session 4-5).
+**Status:** Sessions 1-3 complete. Session 1 (polymorphic schemas, LLM
+provider, orchestrator skeleton, persistence); Session 2 (LLM call path with
+structured-output protocol, active inference selector, Piagetian lifecycle API
+scaffolding); Session 3 (local KB, paper ingestion, engagement signal pipeline,
+CLI surface; six specialists as stubs). Remaining: Session 4 — replace stub
+specialists with real LLMBacking-backed implementations using Llama 3.1 8B /
+Mistral Small 24B per the specialist_assignments config.
 
 **Goal:** trivial end-to-end paper-triage running with hand-designed
 specialists. No self-schema yet, no hypernetwork, no lifecycle.
@@ -155,19 +155,21 @@ specialists. No self-schema yet, no hypernetwork, no lifecycle.
 2. `LLMProvider` abstraction wrapping Anthropic SDK (primary) and Ollama
    (secondary). **DONE in Session 1.**
 3. ~6 hand-designed seed specialists with explicit slots and confidence
-   interfaces:
+   interfaces. **Stubs added in Session 3; real implementations Session 4.**
    - novelty-vs-KB
    - methodological-rigor
    - theoretical-claim-evaluator
    - relevance-to-Zach's-projects
    - citation-graph-position
    - author-history
-4. ResearchKB integration (read access; write access for newly-ingested
-   papers).
-5. Paper ingestion pipeline (daily arxiv/Semantic-Scholar crawl with change
-   detection).
-6. Engagement signal pipeline (polymorphic event types; v0 handlers for
-   read/skim/discard/flag/notes/time-on-paper).
+4. ResearchKB integration. **Dropped from v0. strange-loop owns its own KB via
+   `LocalKBConnector`. ResearchKB integration deferred to Phase 1.5+ as an
+   optional bridge.**
+5. Paper ingestion pipeline. **DONE in Session 3** — arxiv source via the
+   `arxiv` package; daily batch via CLI.
+6. Engagement signal pipeline. **DONE in Session 3** — polymorphic
+   SignalEvent/SignalKind/SignalHandler/SignalRegistry; markdown-file
+   collection surface with watchdog; CLI bulk-update.
 7. Global workspace context-construction service. **DONE in Session 1.**
 8. Active inference action selection over specialist invocations. **DONE in
    Session 2** (GenerativeModel + Preferences + ActiveInferenceSelector; top-k
@@ -358,8 +360,11 @@ what's recomputable.
 
 1. **Episodic** — paper-engagement events (paper-id, timestamp, signal type,
    signal payload). Persisted.
-2. **Semantic** — ResearchKB (existing) extended with schema-population
-   history. Persisted, integrated by reference.
+2. **Semantic** — local paper corpus. **Implemented and operational in
+   Session 3** via `LocalKBConnector` (SQLite metadata + FAISS similarity over
+   sentence-transformers embeddings); `FakeKBConnector` keeps tests hermetic.
+   ResearchKB is *not* used in v0; a ResearchKB bridge would be a second
+   `KBConnector`, deferred to Phase 1.5+.
 3. **Self-narrative** — Mamba self-thread state and identity invariants.
    Checkpointed every batch + every session close.
 4. **Procedural** — schema lifecycle log (spawn/split/merge/prune events with
