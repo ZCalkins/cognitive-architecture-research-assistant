@@ -11,6 +11,7 @@ Ollama.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import time
@@ -25,6 +26,8 @@ from src.ingestion import ArxivSource, IngestionPipeline
 from src.kb import EmbeddingService, LocalKBConnector
 from src.orchestrator import Dispatcher, Orchestrator, Workspace
 from src.persistence import SQLiteStore
+from src.providers import OllamaProvider
+from src.schemas.structured_output import StructuredOutputParseError
 from src.signals import (
     DefaultLoggingHandler,
     PaperTagHandler,
@@ -36,6 +39,8 @@ from src.signals import (
     TriageMarkdownWriter,
 )
 from src.specialists import build_v0_specialist_registry
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "conf" / "config.yaml"
 _VALID_STATUSES = ("pending", "read", "skim", "discard", "flag")
@@ -72,6 +77,10 @@ def make_source(config: dict) -> ArxivSource:
 
 def make_store(config: dict) -> SQLiteStore:
     return SQLiteStore(config["persistence"]["db_path"])
+
+
+def make_provider(config: dict) -> OllamaProvider:
+    return OllamaProvider(host=config["llm"]["ollama_host"])
 
 
 # --- helpers --------------------------------------------------------------
@@ -115,8 +124,9 @@ def _update_last_ingestion(config: dict) -> None:
     marker.write_text(str(time.time()))
 
 
-def _score(_output, alpha) -> float:
-    return round(float(alpha.mean()), 4)
+def _score(output, _alpha) -> float:
+    # The specialist's assessment is output[0] in [0, 1]; alpha is its confidence.
+    return round(float(output.flatten()[0]), 4)
 
 
 def _set_status_in_text(text: str, paper_id: str, status: str) -> str:
@@ -192,12 +202,13 @@ def triage_build(ctx: click.Context, since: str | None, max_papers: int | None) 
 
     report = pipeline.run(since=_resolve_since(since, config))
 
-    latent_dim = config["embedding"]["dimension"]
-    registry = build_v0_specialist_registry(latent_dim=latent_dim)
+    registry = build_v0_specialist_registry(config)
     workspace = Workspace(registry)
     dispatcher = Dispatcher(registry, workspace)
     # The orchestrator owns the action-selection surface; it is the research subject.
     orchestrator = Orchestrator(registry, workspace, dispatcher, store)
+    provider = make_provider(config)
+    projects = config.get("projects_context", "")
 
     target = max_papers or config["triage"].get("papers_per_day_target", 30)
     papers = kb.all_papers()
@@ -206,8 +217,28 @@ def triage_build(ctx: click.Context, since: str | None, max_papers: int | None) 
     scores: dict[str, dict[str, float]] = {}
     for paper in papers:
         context = embedding_service.cached_embed_paper(paper)
-        # Dispatch ALL specialists so the triage shows every specialist's score.
-        results = orchestrator.dispatcher.dispatch(context, top_k=len(registry))
+        neighbors = kb.nearest_neighbors(paper.paper_id, top_k=5)
+        slot_values = {
+            "_llm_provider": provider,
+            "title": paper.title,
+            "abstract": paper.abstract,
+            "authors": "; ".join(paper.authors),
+            "categories": ", ".join(paper.categories),
+            "kb_neighbors": "\n".join(f"- {ref.title}" for ref in neighbors)
+            or "(none known yet)",
+            "projects": projects,
+        }
+        try:
+            # Dispatch ALL specialists so the triage shows every specialist's score.
+            results = orchestrator.dispatcher.dispatch(
+                context, slot_values=slot_values, top_k=len(registry)
+            )
+        except StructuredOutputParseError:
+            logger.warning(
+                "specialist parse failure on %s; leaving it unscored", paper.paper_id
+            )
+            scores[paper.paper_id] = {}
+            continue
         scores[paper.paper_id] = {
             schema.meta.referent: _score(output, alpha)
             for schema, output, alpha in results

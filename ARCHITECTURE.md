@@ -137,13 +137,17 @@ probe instrumentation; this document and `CLAUDE.md`; passing pytest.
 
 ### Phase 1 — Orchestrator skeleton
 
-**Status:** Sessions 1-3 complete. Session 1 (polymorphic schemas, LLM
+**Status:** Sessions 1-4 complete. Session 1 (polymorphic schemas, LLM
 provider, orchestrator skeleton, persistence); Session 2 (LLM call path with
 structured-output protocol, active inference selector, Piagetian lifecycle API
 scaffolding); Session 3 (local KB, paper ingestion, engagement signal pipeline,
-CLI surface; six specialists as stubs). Remaining: Session 4 — replace stub
-specialists with real LLMBacking-backed implementations using Llama 3.1 8B /
-Mistral Small 24B per the specialist_assignments config.
+CLI surface); Session 4 (the six seed specialists as real LLMBacking-backed
+schemas — `latent_dim=1` score + Dirichlet confidence, model per
+`specialist_assignments`; `citation_graph_position` and `author_history` run on
+v0 metadata at deliberately low confidence pending a Semantic-Scholar source).
+The **Phase 1 milestone test is now runnable** on a machine with Ollama + the
+two models (it cannot run in CI: no Ollama, arxiv/HuggingFace blocked, and it
+requires real human engagement). Phase 2 is gated on it.
 
 **Goal:** trivial end-to-end paper-triage running with hand-designed
 specialists. No self-schema yet, no hypernetwork, no lifecycle.
@@ -155,7 +159,8 @@ specialists. No self-schema yet, no hypernetwork, no lifecycle.
 2. `LLMProvider` abstraction wrapping Anthropic SDK (primary) and Ollama
    (secondary). **DONE in Session 1.**
 3. ~6 hand-designed seed specialists with explicit slots and confidence
-   interfaces. **Stubs added in Session 3; real implementations Session 4.**
+   interfaces. **DONE in Session 4** — real `LLMBacking` schemas (score +
+   confidence; light/heavy model assignment). Stubs (Session 3) removed.
    - novelty-vs-KB
    - methodological-rigor
    - theoretical-claim-evaluator

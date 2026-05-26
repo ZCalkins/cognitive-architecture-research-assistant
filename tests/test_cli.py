@@ -16,13 +16,37 @@ import src.cli as cli_module
 from src.cli import cli
 from src.kb import FakeKBConnector, Paper
 from src.persistence import SQLiteStore
+from src.providers import LLMResponse
 from src.signals import SignalEvent, SignalKind
 from src.signals.markdown import TriageMarkdownWriter
 
 
+class _FakeProvider:
+    def complete(self, request):
+        return LLMResponse(
+            text='{"output": [0.6], "alpha": [2.0]}',
+            model=request.model,
+            input_tokens=1,
+            output_tokens=1,
+            stop_reason="end_turn",
+            raw={},
+        )
+
+
 def _write_config(tmp_path):
     config = {
+        "llm": {"ollama_host": "http://localhost:11434"},
         "embedding": {"model_name": "fake", "dimension": 8, "cache_dir": str(tmp_path / "emb")},
+        "specialist_models": {"triage_light": "llama-light", "triage_heavy": "mistral-heavy"},
+        "specialist_assignments": {
+            "novelty_vs_kb": "triage_light",
+            "relevance_to_projects": "triage_light",
+            "citation_graph_position": "triage_light",
+            "author_history": "triage_light",
+            "methodological_rigor": "triage_heavy",
+            "theoretical_claim_evaluator": "triage_heavy",
+        },
+        "projects_context": "strange-loop research architecture",
         "kb": {
             "papers_db_path": str(tmp_path / "papers.db"),
             "embeddings_index_path": str(tmp_path / "p.faiss"),
@@ -104,8 +128,8 @@ def test_cli_signals_recent_lists_events(tmp_path, monkeypatch):
     assert "px" in result.output
 
 
-def test_cli_triage_build_runs_end_to_end_with_stubs(tmp_path, monkeypatch):
-    """Serves the Phase 1 substrate: ingest -> triage runs end-to-end with stubs."""
+def test_cli_triage_build_runs_end_to_end_with_llm(tmp_path, monkeypatch):
+    """Serves the Phase 1 substrate: ingest -> LLM triage runs end-to-end (mocked)."""
     config_path = _write_config(tmp_path)
     papers = [
         Paper(
@@ -124,6 +148,7 @@ def test_cli_triage_build_runs_end_to_end_with_stubs(tmp_path, monkeypatch):
     monkeypatch.setattr(cli_module, "make_kb", lambda config, emb: FakeKBConnector())
     monkeypatch.setattr(cli_module, "make_source", lambda config: fake_source)
     monkeypatch.setattr(cli_module, "make_store", lambda config: SQLiteStore(":memory:"))
+    monkeypatch.setattr(cli_module, "make_provider", lambda config: _FakeProvider())
 
     result = CliRunner().invoke(
         cli, ["--config-path", str(config_path), "triage", "build"]

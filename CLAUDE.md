@@ -27,19 +27,22 @@ is honestly claimable from code.
 
 ## Current phase
 
-**Phase 1 — Orchestrator skeleton, Sessions 1-3 complete.** Session 1
+**Phase 1 — Orchestrator skeleton, Sessions 1-4 complete.** Session 1
 (polymorphic schemas, providers, orchestrator skeleton, SQLite persistence,
 probes); Session 2 (LLM call path, active inference with the top-k baseline
 preserved as the Phase 5 criterion 2 ablation control, lifecycle API); Session
 3 (local KB via `LocalKBConnector`, arxiv paper ingestion, polymorphic
-engagement-signal pipeline + markdown triage surface, `click` CLI; the six
-specialists exist as deterministic STUBS). Passing pytest.
+engagement-signal pipeline + markdown triage surface, `click` CLI); Session 4
+(the six seed specialists as real `LLMBacking` schemas — score + Dirichlet
+confidence, light/heavy model assignment; `citation_graph_position` and
+`author_history` run on v0 metadata at low confidence pending Semantic Scholar).
+Passing pytest.
 
-**Next session work:** replace the six stub specialists with real
-LLMBacking-backed implementations (concrete prompt templates, slot definitions,
-structured-output examples; model assignment per `specialist_assignments`).
-After Session 4 the Phase 1 milestone test is runnable. Lifecycle trigger
-*dynamics* land in Phase 2.
+**Next:** the Phase 1 milestone test — run `strange-loop triage build` on a
+machine with Ollama + the two models, capture engagement over a paper window,
+and compare against a baseline observer on next-paper prediction. It cannot run
+in CI (no Ollama; arxiv/HuggingFace blocked; needs real engagement). Phase 2
+(lifecycle trigger *dynamics*) is gated on that milestone passing.
 
 ## The thesis (one sentence)
 

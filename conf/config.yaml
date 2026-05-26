@@ -24,6 +24,14 @@ specialist_assignments:
   methodological_rigor: triage_heavy
   theoretical_claim_evaluator: triage_heavy
 
+# Static context for the relevance_to_projects specialist. Customize to your
+# own active projects; this is read into slot_values at triage-build time.
+projects_context: |
+  Active projects (customize to your own):
+  - strange-loop: this self-modeling orchestrator research architecture.
+  - ResearchKB: a personal research knowledge base.
+  - SSN: (describe your SSN project here).
+
 embedding:
   model_name: sentence-transformers/mxbai-embed-large-v1
   dimension: 1024

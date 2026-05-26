@@ -1,25 +1,17 @@
-"""Seed specialists — STUBS in Session 3, real LLMBacking-backed in Session 4.
+"""Seed specialists — real LLMBacking-backed assessment schemas (Session 4).
 
-See ARCHITECTURE.md "Phase 1 deliverable 3". These stubs only wire the
-end-to-end pipeline; they are not load-bearing for any architectural claim.
+See ARCHITECTURE.md "Phase 1 deliverable 3". Each specialist is an object-level
+oracle; the orchestrator decides, the specialists assess (the (C) firewall).
 """
 
-from src.specialists.stubs import (
-    build_author_history_stub,
-    build_citation_graph_position_stub,
-    build_methodological_rigor_stub,
-    build_novelty_vs_kb_stub,
-    build_relevance_to_projects_stub,
-    build_theoretical_claim_evaluator_stub,
+from src.specialists.seed_specialists import (
+    SPECIALIST_NAMES,
+    build_specialist,
     build_v0_specialist_registry,
 )
 
 __all__ = [
-    "build_author_history_stub",
-    "build_citation_graph_position_stub",
-    "build_methodological_rigor_stub",
-    "build_novelty_vs_kb_stub",
-    "build_relevance_to_projects_stub",
-    "build_theoretical_claim_evaluator_stub",
+    "SPECIALIST_NAMES",
+    "build_specialist",
     "build_v0_specialist_registry",
 ]
